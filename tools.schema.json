@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Guardian backend tools that CREAO's agents can call. HMAC-SHA256 signature in header `x-creao-signature` over the raw body, using CREAO_WEBHOOK_SECRET.",
+  "baseUrl": "https://<your-vercel-url>/api/creao/tools",
+  "tools": [
+    {
+      "name": "get_usual_items",
+      "method": "POST",
+      "path": "/get_usual_items",
+      "input": { "memberId": "string" },
+      "output": { "items": [{ "productId": "string", "quantity": "number", "name": "string", "priceCents": "number" }] }
+    },
+    {
+      "name": "search_products",
+      "method": "POST",
+      "path": "/search_products",
+      "input": { "query": "string", "limit": "number?" },
+      "output": { "results": [{ "id": "string", "name": "string", "priceCents": "number", "category": "grocery|otc" }] }
+    },
+    {
+      "name": "create_cart",
+      "method": "POST",
+      "path": "/create_cart",
+      "input": {
+        "memberId": "string",
+        "channel": "sms|imessage|voice",
+        "items": [{ "productId": "string", "quantity": "number" }],
+        "note": "string?"
+      },
+      "output": { "cartId": "string", "items": "array", "subtotalCents": "number" }
+    },
+    {
+      "name": "check",
+      "method": "POST",
+      "path": "/check",
+      "input": {
+        "memberId": "string",
+        "message": "string",
+        "subtotalCents": "number",
+        "itemProductIds": ["string"],
+        "mentionedDomains": ["string"]
+      },
+      "output": {
+        "risk": "number (0-100)",
+        "reasons": ["string"],
+        "action": "auto_approve|needs_approval|block"
+      }
+    },
+    {
+      "name": "check_scam",
+      "method": "POST",
+      "path": "/check_scam",
+      "input": { "memberId": "string", "message": "string", "channel": "sms|imessage|voice", "mentionedDomains": ["string"] },
+      "output": { "flagged": "boolean", "reasons": ["gift_card|irs_impersonation|medicare_impersonation|grandchild_story|urgency|secrecy|fake_pharmacy"] }
+    },
+    {
+      "name": "request_approval",
+      "method": "POST",
+      "path": "/request_approval",
+      "input": {
+        "memberId": "string",
+        "cartId": "string",
+        "riskScore": "number",
+        "reasons": ["string"],
+        "recommendedAction": "auto_approve|needs_approval|block"
+      },
+      "output": { "approvalId": "string", "orderId": "string", "expiresAt": "ISO date" }
+    },
+    {
+      "name": "record_approval_answer",
+      "method": "POST",
+      "path": "/record_approval_answer",
+      "input": { "approvalId": "string", "decision": "approved|denied" },
+      "output": { "ok": "boolean", "charged": "boolean", "ref": "string?" }
+    },
+    {
+      "name": "request_refill",
+      "method": "POST",
+      "path": "/request_refill",
+      "input": { "memberId": "string", "rxNumber": "string" },
+      "output": { "status": "ready|no_refills_left|not_found", "drug": "string", "pickupAt": "ISO date?", "pickupName": "string?", "pickupDob": "string?", "pharmacyName": "string?", "pharmacyPhone": "string?", "message": "string?" }
+    },
+    {
+      "name": "pay",
+      "method": "POST",
+      "path": "/pay",
+      "input": { "orderId": "string" },
+      "output": { "ok": "boolean", "ref": "string", "mode": "sandbox|mock" }
+    },
+    {
+      "name": "freeze",
+      "method": "POST",
+      "path": "/freeze",
+      "input": { "memberId": "string", "frozen": "boolean" },
+      "output": { "ok": "boolean", "frozen": "boolean" }
+    }
+  ]
+}
