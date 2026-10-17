@@ -1,8 +1,6 @@
 // Seeds a single family + a tiny catalog + 3 prescriptions. Idempotent-ish:
 // safe to run twice because unique constraints prevent dupes on phone / sku.
 
-import "dotenv/config";
-
 import { db, schema } from "@/lib/db";
 
 const GROCERIES = [
