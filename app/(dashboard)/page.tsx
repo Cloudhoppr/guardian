@@ -20,14 +20,24 @@ export default async function Dashboard() {
         {events.length === 0 ? (
           <Empty>No events yet. Trigger a call or text to see Guardian think.</Empty>
         ) : (
-          events.map((e) => (
-            <Row key={e.id}>
-              <code style={{ color: stageColor(e.stage) }}>{e.stage}</code> · {e.message}
-              <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 8 }}>
-                {new Date(e.createdAt).toLocaleTimeString()}
-              </span>
-            </Row>
-          ))
+          events.map((e) => {
+            const audioId = parseAudioId(e.payload);
+            return (
+              <Row key={e.id}>
+                <code style={{ color: stageColor(e.stage) }}>{e.stage}</code> · {e.message}
+                {audioId ? (
+                  <audio
+                    controls
+                    src={`/api/audio/${audioId}`}
+                    style={{ height: 24, verticalAlign: "middle", marginLeft: 8 }}
+                  />
+                ) : null}
+                <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 8 }}>
+                  {new Date(e.createdAt).toLocaleTimeString()}
+                </span>
+              </Row>
+            );
+          })
         )}
       </Section>
 
@@ -62,6 +72,16 @@ export default async function Dashboard() {
       </Section>
     </main>
   );
+}
+
+function parseAudioId(payload: string | null): string | null {
+  if (!payload) return null;
+  try {
+    const parsed = JSON.parse(payload) as { audioId?: unknown };
+    return typeof parsed.audioId === "string" ? parsed.audioId : null;
+  } catch {
+    return null;
+  }
 }
 
 function stageColor(stage: string): string {
