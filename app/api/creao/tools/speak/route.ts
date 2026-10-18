@@ -7,15 +7,19 @@
 // Also logs an order_event with the audioId so clicking play from the
 // timeline just works, no extra wiring needed.
 //
+// Then texts the member the same words plus the MP3 via Photon.
+//
 // Mock mode: if ELEVENLABS_API_KEY is not set, we store a zero-byte row
 // and the dashboard still renders a disabled-looking play button labeled
 // "voice: mock" — the demo doesn't 500.
 
+import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { verifyCreaoRequest } from "@/lib/creao-auth";
 import { db, schema } from "@/lib/db";
 import { textToSpeech } from "@/lib/providers/elevenlabs";
+import { sendText } from "@/lib/providers/photon";
 
 const Body = z.object({
   memberId: z.string(),
@@ -63,8 +67,18 @@ export async function POST(req: Request) {
     payload: JSON.stringify({ audioId: row!.id, context: input.context, mode: tts.mode }),
   });
 
+  // Deliver to Grandma's phone too: the text plus this same MP3, so the
+  // substitution question reaches her even if the agent never calls
+  // status_update. Reuses the bytes — no second TTS run.
+  const [member] = await db.select().from(schema.member).where(eq(schema.member.id, input.memberId)).limit(1);
+  const delivery = member
+    ? await sendText({ to: member.phoneE164, body: input.text, audio: tts.mode === "live" ? bytes : false })
+    : { ok: false as const, error: "unknown_member" };
+  if (!delivery.ok) console.error("[speak] delivery failed:", delivery.error);
+
   return Response.json({
     ok: true,
+    delivered: delivery.ok,
     audioId: row!.id,
     url: `/api/audio/${row!.id}`,
     mode: tts.mode,

@@ -11,6 +11,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "photon:ids": "tsx --env-file=.env.local scripts/photon-ids.ts",
     "elevenlabs:publish": "tsx --env-file=.env.local scripts/publish-elevenlabs.ts"
   },
   "dependencies": {

@@ -2,10 +2,12 @@
 // Builds a cart with the given items. Idempotent on (memberId, cartId) if the
 // agent retries. Returns the cart with current pricing.
 
+import { after } from "next/server";
 import { z } from "zod";
 
 import { verifyCreaoRequest } from "@/lib/creao-auth";
 import { db, schema } from "@/lib/db";
+import { OUT_OF_STOCK, proposeSubstitution } from "@/lib/services/substitution";
 import { eq, inArray } from "drizzle-orm";
 
 const Body = z.object({
@@ -46,6 +48,14 @@ export async function POST(req: Request) {
 
   const items = await db.select().from(schema.cartItem).where(eq(schema.cartItem.cartId, cart!.id));
   const subtotalCents = items.reduce((s, it) => s + it.priceCentsAtAdd * it.quantity, 0);
+
+  // Demo stock-out: any OUT_OF_STOCK item in the cart proposes a substitution,
+  // as Instacart would mid-shop. Runs after the response so the Purchaser
+  // isn't held up; the question lands ~20s later via the Voice Reader.
+  const outOfStock = products.map((p) => OUT_OF_STOCK[p.sku]).filter((s) => s !== undefined);
+  for (const sub of outOfStock) {
+    after(proposeSubstitution({ memberId: input.memberId, ...sub }));
+  }
 
   return Response.json({ cartId: cart!.id, items, subtotalCents });
 }

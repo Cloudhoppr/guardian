@@ -15,6 +15,7 @@
 //     dashboard shows it as "unknown contact" so the family can see attempts.
 
 import { eq } from "drizzle-orm";
+import { after } from "next/server";
 
 import { db, schema } from "@/lib/db";
 import { triggerPurchaser, triggerScamShield } from "@/lib/providers/creao";
@@ -46,13 +47,13 @@ export async function POST(req: Request) {
 
     // Fire-and-forget: Scam Shield runs ~30s and uses our tool API to text
     // Grandma back + alert Elena if it detects a scam.
-    void triggerScamShield({
+    after(triggerScamShield({
       memberId: member.id,
       inboundMessage: payload.body,
       channel: "sms",
     }).then((r) => {
       if (!r.ok) console.error("[photon/inbound] triggerScamShield failed:", r.error);
-    });
+    }));
 
     return Response.json({ ok: true, routed: "scam_shield" });
   }
@@ -73,13 +74,13 @@ export async function POST(req: Request) {
 
     // Approver replies ("yes" / "no" / etc) go to Purchaser so its approval
     // sub-flow can parse the answer and call record_approval_answer.
-    void triggerPurchaser({
+    after(triggerPurchaser({
       memberId: approver.memberId,
       transcript: payload.body,
       channel: "sms",
     }).then((r) => {
       if (!r.ok) console.error("[photon/inbound] triggerPurchaser failed:", r.error);
-    });
+    }));
 
     return Response.json({ ok: true, routed: "purchaser" });
   }

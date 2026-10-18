@@ -2,6 +2,7 @@
 // safe to run twice because unique constraints prevent dupes on phone / sku.
 
 import { db, schema } from "@/lib/db";
+import { GRANDMA_PHONE_E164 } from "@/lib/demo";
 
 const GROCERIES = [
   ["GRO-MILK-2PC", "2% Milk (gallon)", 429, ["milk"]],
@@ -26,6 +27,8 @@ const GROCERIES = [
   ["GRO-SALT", "Table Salt", 149, ["salt"]],
   ["GRO-PEPPER", "Black Pepper", 299, ["pepper"]],
   ["GRO-TOMATO", "Tomatoes (lb)", 329, ["tomatoes"]],
+  // Always "out of stock" — create_cart proposes a substitution for it.
+  ["GRO-AVOCADO", "Avocados (4 ct)", 499, ["avocados", "avocado"]],
   ["GRO-LETTUCE", "Romaine Lettuce", 299, ["lettuce"]],
   ["GRO-CARROT", "Carrots (2 lb)", 249, ["carrots"]],
   ["GRO-POTATO", "Potatoes (5 lb)", 449, ["potatoes"]],
@@ -62,7 +65,7 @@ async function main() {
     .values({
       fullName: "Ruth Alvarez",
       preferredName: "Ruth",
-      phoneE164: "+15551234567",
+      phoneE164: GRANDMA_PHONE_E164,
       dateOfBirth: "1948-04-12",
       dietaryPrefs: ["low-sodium"],
       timezone: "America/Los_Angeles",
@@ -98,7 +101,7 @@ async function main() {
 
   const all = await db.select().from(schema.product);
   const bySku = (s: string) => all.find((p) => p.sku === s)!;
-  const usualSkus = ["GRO-MILK-2PC", "GRO-EGGS-DZ", "GRO-BREAD-WG", "GRO-CER-BLU", "GRO-BANAN", "GRO-OJ", "GRO-COFFEE", "GRO-YOGURT", "GRO-CHIK-BR", "GRO-SOUP"];
+  const usualSkus = ["GRO-MILK-2PC", "GRO-EGGS-DZ", "GRO-BREAD-WG", "GRO-CER-BLU", "GRO-BANAN", "GRO-OJ", "GRO-COFFEE", "GRO-YOGURT", "GRO-CHIK-BR", "GRO-SOUP", "GRO-AVOCADO"];
   await db
     .insert(schema.usualItem)
     .values(usualSkus.map((s) => ({ memberId: member.id, productId: bySku(s).id, typicalQuantity: 1 })))

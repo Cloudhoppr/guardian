@@ -58,14 +58,21 @@ async function triggerAgent(
     ? `${publicUrl}/api/creao/callback?secret=${encodeURIComponent(callbackSecret)}`
     : undefined;
 
-  const res = await fetch(`https://agent.creao.ai/api/v1/apps/${appId}/runs`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({ inputs, ...(webhookUrl ? { webhookUrl } : {}) }),
-  });
+  // Network failures resolve to ok:false instead of rejecting — callers run
+  // this in the background, where an unhandled rejection kills the function.
+  let res: Response;
+  try {
+    res = await fetch(`https://agent.creao.ai/api/v1/apps/${appId}/runs`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ inputs, ...(webhookUrl ? { webhookUrl } : {}) }),
+    });
+  } catch (err) {
+    return { ok: false, error: `creao fetch failed: ${err instanceof Error ? err.message : String(err)}` };
+  }
 
   if (!res.ok) {
     return { ok: false, error: `creao ${res.status}: ${await res.text()}` };
