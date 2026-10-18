@@ -7,14 +7,30 @@ import { db, schema } from "@/lib/db";
 export const dynamic = "force-dynamic";
 
 export default async function Dashboard() {
-  const [orders, scams, approvals] = await Promise.all([
+  const [orders, scams, approvals, events] = await Promise.all([
     db.select().from(schema.order).orderBy(desc(schema.order.createdAt)).limit(10),
     db.select().from(schema.scamEvent).orderBy(desc(schema.scamEvent.blockedAt)).limit(10),
     db.select().from(schema.approval).orderBy(desc(schema.approval.requestedAt)).limit(10),
+    db.select().from(schema.orderEvent).orderBy(desc(schema.orderEvent.createdAt)).limit(20),
   ]);
 
   return (
     <main style={{ display: "grid", gap: 24 }}>
+      <Section title="Live timeline">
+        {events.length === 0 ? (
+          <Empty>No events yet. Trigger a call or text to see Guardian think.</Empty>
+        ) : (
+          events.map((e) => (
+            <Row key={e.id}>
+              <code style={{ color: stageColor(e.stage) }}>{e.stage}</code> · {e.message}
+              <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 8 }}>
+                {new Date(e.createdAt).toLocaleTimeString()}
+              </span>
+            </Row>
+          ))
+        )}
+      </Section>
+
       <Section title="Pending approvals">
         {approvals.filter((a) => a.decision === "pending").length === 0 ? (
           <Empty>Nothing waiting.</Empty>
@@ -46,6 +62,13 @@ export default async function Dashboard() {
       </Section>
     </main>
   );
+}
+
+function stageColor(stage: string): string {
+  if (stage === "paid" || stage === "approved_auto" || stage === "approved_by_elena") return "var(--good)";
+  if (stage === "refused_scam" || stage === "denied_by_elena" || stage === "error") return "var(--danger)";
+  if (stage === "needs_approval" || stage === "approver_notified") return "var(--accent)";
+  return "var(--muted)";
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

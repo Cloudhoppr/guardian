@@ -93,6 +93,21 @@
       "path": "/freeze",
       "input": { "memberId": "string", "frozen": "boolean" },
       "output": { "ok": "boolean", "frozen": "boolean" }
+    },
+    {
+      "name": "status_update",
+      "method": "POST",
+      "path": "/status_update",
+      "description": "The Purchaser agent MUST call this at every stage so Grandma's phone shows live progress and the dashboard timeline fills in. Call it at least on: intake_processing, cart_built, checking, and the terminal stage (paid / needs_approval / refused_scam).",
+      "input": {
+        "memberId": "string",
+        "orderId": "string?",
+        "stage": "call_received|acknowledged|intake_processing|cart_built|checking|approved_auto|needs_approval|approver_notified|approved_by_elena|denied_by_elena|paid|delivery_scheduled|refused_scam|error",
+        "message": "string (<=500 chars, written for Grandma to read on a phone)",
+        "payload": "object (optional)",
+        "notify": "grandma|elena|both|none (default: grandma)"
+      },
+      "output": { "ok": "boolean", "notified": "grandma|elena|both|none" }
     }
   ]
 }
