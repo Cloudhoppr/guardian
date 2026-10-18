@@ -14,7 +14,9 @@ export type SendTextInput = {
   // Recipient E.164. Must equal GRANDMA_PHONE_E164 to actually send.
   to: string;
   body: string;
-  // Idempotency key so Photon dedupes retries. Default: hash of (to+body+day).
+  // Idempotency key so Photon dedupes retries. Default: (to+body hash+ms
+  // timestamp), so repeat sends of the same text still go out — callers own
+  // retry dedupe (status_update collapses repeats within 10s).
   idempotencyKey?: string;
 };
 
@@ -35,7 +37,7 @@ export async function sendText(input: SendTextInput): Promise<{ ok: true; id: st
     return { ok: true, id: `skipped-${Date.now()}` };
   }
 
-  const key = input.idempotencyKey ?? `${input.to}:${hash(input.body)}:${new Date().toISOString().slice(0, 10)}`;
+  const key = input.idempotencyKey ?? `${input.to}:${hash(input.body)}:${Date.now()}`;
 
   const res = await fetch(`${url}/v1/projects/${projectId}/messages`, {
     method: "POST",
