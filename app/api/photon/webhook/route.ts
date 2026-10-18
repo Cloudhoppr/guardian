@@ -26,16 +26,18 @@ import { db, schema } from "@/lib/db";
 import { triggerPurchaser, triggerScamShield } from "@/lib/providers/creao";
 import { answerPendingSubstitution } from "@/lib/services/substitution";
 
-// Beta envelope: { id, type, apiVersion, source, timestamp, data } where data
-// is the Message. Only the fields we route on are typed.
+// Beta envelope: { id, type, apiVersion, source, timestamp, data } where
+// data.object is the Message. Only the fields we route on are typed.
 type PhotonEvent = {
   id: string;
   type: string;
   data?: {
-    id: string;
-    platform: string;
-    sentBy?: { handle?: string; kind?: string };
-    content?: { type: string; text?: string };
+    object?: {
+      id: string;
+      platform: string;
+      sentBy?: { handle?: string; kind?: string };
+      content?: { type: string; text?: string };
+    };
   };
 };
 
@@ -92,7 +94,7 @@ export async function POST(req: Request) {
   }
 
   const event = JSON.parse(rawBody) as PhotonEvent;
-  const message = event.data;
+  const message = event.data?.object;
   const from = message?.sentBy?.handle;
   const text = message?.content?.type === "text" ? message.content.text : undefined;
   // Only human-sent text matters; ignore our own sends, reads, typing, etc.
