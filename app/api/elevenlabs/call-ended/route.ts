@@ -24,7 +24,14 @@ const Body = z.object({
 
 export async function POST(req: Request) {
   const sharedSecret = process.env.ELEVENLABS_WEBHOOK_SECRET;
-  if (sharedSecret) {
+  if (!sharedSecret) {
+    // Fail closed in production. In dev, warn but allow — matches the
+    // creao-auth pattern so local testing doesn't need a secret configured.
+    if (process.env.NODE_ENV === "production") {
+      return Response.json({ error: "ELEVENLABS_WEBHOOK_SECRET not set" }, { status: 500 });
+    }
+    console.warn("[elevenlabs/call-ended] ELEVENLABS_WEBHOOK_SECRET not set — allowing in dev");
+  } else {
     const got = req.headers.get("x-elevenlabs-secret");
     if (got !== sharedSecret) {
       return Response.json({ error: "unauthorized" }, { status: 401 });

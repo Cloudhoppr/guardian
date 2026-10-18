@@ -54,9 +54,32 @@
       "output": { "flagged": "boolean", "reasons": ["gift_card|irs_impersonation|medicare_impersonation|grandchild_story|urgency|secrecy|fake_pharmacy"] }
     },
     {
+      "name": "commit_cart",
+      "method": "POST",
+      "path": "/commit_cart",
+      "description": "Freezes a cart into an order. Use mode='auto' for routine orders (NO text to Elena). Use mode='needs_approval' when check() returned 'needs_approval' (Elena IS texted). This is the ONLY endpoint that both creates an order and decides whether to involve Elena.",
+      "input": {
+        "memberId": "string",
+        "cartId": "string",
+        "mode": "auto|needs_approval",
+        "riskScore": "number (required when mode='needs_approval')",
+        "reasons": "string[] (required when mode='needs_approval')"
+      },
+      "output": {
+        "orderId": "string",
+        "status": "approved|pending_approval",
+        "subtotalCents": "number",
+        "approvalId": "string (only when mode='needs_approval')",
+        "expiresAt": "ISO date (only when mode='needs_approval')",
+        "approverNotified": "boolean"
+      }
+    },
+    {
       "name": "request_approval",
       "method": "POST",
       "path": "/request_approval",
+      "deprecated": true,
+      "description": "DEPRECATED. Use commit_cart with mode='needs_approval' instead. This endpoint always texts Elena regardless of recommendedAction, which is wrong for routine orders.",
       "input": {
         "memberId": "string",
         "cartId": "string",
