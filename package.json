@@ -10,7 +10,8 @@
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "seed": "tsx --env-file=.env.local scripts/seed.ts"
+    "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "elevenlabs:publish": "tsx --env-file=.env.local scripts/publish-elevenlabs.ts"
   },
   "dependencies": {
     "@neon/config": "^1.9.2",
