@@ -7,3 +7,4 @@ export * from "./order";
 export * from "./approval";
 export * from "./scam-event";
 export * from "./order-event";
+export * from "./audio-asset";
