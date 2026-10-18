@@ -6,6 +6,20 @@ Voice-first grocery and pharmacy for elderly parents, approved by family, with a
 - **Customer**: the adult child — sets rules, approves by text.
 - **Agent provider**: CREAO builds the agents; this repo exposes the tool API they call.
 
+## CREAO agents
+
+Guardian orchestrates four CREAO agents. Each has its own app-scoped API key and is called from `lib/providers/creao.ts`.
+
+| Agent          | ID                                     | Page |
+|----------------|----------------------------------------|------|
+| Purchaser      | `e60ae93c-e43c-428d-a31b-b8bde26b06ac` | https://agent.creao.ai/apps/e60ae93c-e43c-428d-a31b-b8bde26b06ac |
+| Scam Shield    | `d6d408af-c7d8-40e9-ae78-12a2b9c29d50` | https://agent.creao.ai/apps/d6d408af-c7d8-40e9-ae78-12a2b9c29d50 |
+| Status Updater | `7cccd992-1b61-4c4a-b7eb-f687a70f12c5` | https://agent.creao.ai/apps/7cccd992-1b61-4c4a-b7eb-f687a70f12c5 |
+| Voice Reader   | `71c93be7-247b-4fe4-9f85-c92efa0e4b57` | https://agent.creao.ai/apps/71c93be7-247b-4fe4-9f85-c92efa0e4b57 |
+
+**Sample Purchaser run (end-to-end, 19 steps, terminal stage `paid`):**
+https://agent.creao.ai/chat?threadId=12bbca21-7e25-420c-a96a-3382d27c87a7
+
 ## Stack
 - Next.js 15 App Router (one app = backend + dashboard)
 - Postgres (Neon) + Drizzle ORM
