@@ -10,7 +10,7 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, schema } from "@/lib/db";
-import { askAgent } from "@/lib/providers/creao";
+import { triggerPurchaser } from "@/lib/providers/creao";
 import { sendText } from "@/lib/providers/photon";
 
 const Body = z.object({
@@ -75,13 +75,20 @@ export async function POST(req: Request) {
     message: ackText,
   });
 
-  // Fire-and-forget to CREAO. Don't await — ElevenLabs is waiting on us and
-  // the agent runs for minutes. Any error inside the Purchaser is captured
-  // by that side's own status_update("error", ...) call.
-  void askAgent({
+  // Fire-and-forget to the saved CREAO Purchaser agent via its API Trigger.
+  // Don't await — ElevenLabs is waiting on us and the agent runs for ~30-90s.
+  // The Purchaser calls our /api/creao/tools/* endpoints as it works, so
+  // status updates flow back to Grandma via Photon in real time without us
+  // holding this request open.
+  void triggerPurchaser({
     memberId: resolvedMember.id,
-    intent: "compose_approval_request",
-    payload: { transcript: input.transcript, extractedIntent: input.extractedIntent ?? null },
+    transcript: input.transcript,
+    channel: "voice",
+    newItems: input.extractedIntent ?? undefined,
+  }).then((result) => {
+    if (!result.ok) {
+      console.error("[call-ended] triggerPurchaser failed:", result.error);
+    }
   });
 
   return Response.json({ ok: true, memberId: resolvedMember.id });

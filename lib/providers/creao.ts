@@ -18,6 +18,64 @@ export type AgentCall = {
   payload: Record<string, unknown>;
 };
 
+// --- App-scoped API Trigger (saved CREAO agents) ---
+// Docs: https://docs.creao.ai/pro/api-trigger
+// Fire a saved agent (identified by its appId) with structured inputs. CREAO
+// returns 202 immediately with a runId; the agent runs for ~30-90s. If we
+// pass webhookUrl, CREAO POSTs the final result back to us when it finishes.
+// During the run, the agent calls our /api/creao/tools/* endpoints directly
+// via its own `callTool` helper — this fire-and-forget is just the kickoff.
+
+export type TriggerPurchaserInput = {
+  memberId: string;
+  transcript: string;
+  channel: "sms" | "imessage" | "voice";
+  newItems?: string;
+};
+
+export type TriggerResult =
+  | { ok: true; runId: string; status: string }
+  | { ok: false; error: string };
+
+const PURCHASER_APP_ID = "e60ae93c-e43c-428d-a31b-b8bde26b06ac";
+
+export async function triggerPurchaser(input: TriggerPurchaserInput): Promise<TriggerResult> {
+  const apiKey = process.env.CREAO_PURCHASER_API_KEY;
+  if (!apiKey) {
+    console.warn("[creao] CREAO_PURCHASER_API_KEY not set — skipping real trigger");
+    return { ok: false, error: "no_api_key_configured" };
+  }
+
+  const callbackSecret = process.env.CREAO_CALLBACK_SECRET;
+  const publicUrl = process.env.PUBLIC_BASE_URL ?? "https://guardian-three-tau.vercel.app";
+  const webhookUrl = callbackSecret
+    ? `${publicUrl}/api/creao/callback?secret=${encodeURIComponent(callbackSecret)}`
+    : undefined;
+
+  const res = await fetch(`https://agent.creao.ai/api/v1/apps/${PURCHASER_APP_ID}/runs`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      inputs: {
+        memberId: input.memberId,
+        transcript: input.transcript,
+        channel: input.channel,
+        ...(input.newItems ? { newItems: input.newItems } : {}),
+      },
+      ...(webhookUrl ? { webhookUrl } : {}),
+    }),
+  });
+
+  if (!res.ok) {
+    return { ok: false, error: `creao ${res.status}: ${await res.text()}` };
+  }
+  const data = (await res.json()) as { id: string; status: string };
+  return { ok: true, runId: data.id, status: data.status };
+}
+
 export async function askAgent(call: AgentCall): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const url = process.env.CREAO_API_URL;
   const key = process.env.CREAO_API_KEY;
