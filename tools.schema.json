@@ -118,6 +118,19 @@
       "output": { "ok": "boolean", "frozen": "boolean" }
     },
     {
+      "name": "narrate",
+      "method": "POST",
+      "path": "/narrate",
+      "description": "Composition entrypoint. Other agents call this with structured event+data; the Status Updater agent composes a warm grandma-friendly message and sends it via Photon. Prefer narrate over raw status_update for anything the member will see.",
+      "input": {
+        "memberId": "string",
+        "event": "string (same vocab as status_update.stage)",
+        "data": "object (optional, e.g. {itemCount, totalDollars})",
+        "orderId": "string (optional)"
+      },
+      "output": { "ok": "boolean", "runId": "string?", "mode": "agent|fallback" }
+    },
+    {
       "name": "status_update",
       "method": "POST",
       "path": "/status_update",

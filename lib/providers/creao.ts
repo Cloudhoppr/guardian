@@ -39,6 +39,8 @@ export type TriggerResult =
 
 const PURCHASER_APP_ID = "e60ae93c-e43c-428d-a31b-b8bde26b06ac";
 const SCAM_SHIELD_APP_ID = "d6d408af-c7d8-40e9-ae78-12a2b9c29d50";
+// Set this once the Status Updater agent is created on agent.creao.ai.
+const STATUS_UPDATER_APP_ID = process.env.CREAO_STATUS_UPDATER_AGENT_ID ?? "";
 
 async function triggerAgent(
   appId: string,
@@ -92,6 +94,29 @@ export function triggerScamShield(input: TriggerScamShieldInput): Promise<Trigge
     memberId: input.memberId,
     inboundMessage: input.inboundMessage,
     channel: input.channel,
+  });
+}
+
+// Status Updater: a composition agent. Other agents (Purchaser, Scam Shield)
+// call /api/creao/tools/narrate when they want a warm, grandma-friendly text
+// sent to the member. We fire this agent, it composes the message, and it
+// calls status_update to actually deliver via Photon.
+export type TriggerStatusUpdaterInput = {
+  memberId: string;
+  event: string; // matches orderEventStage enum values
+  data?: Record<string, unknown>;
+  orderId?: string;
+};
+
+export function triggerStatusUpdater(input: TriggerStatusUpdaterInput): Promise<TriggerResult> {
+  if (!STATUS_UPDATER_APP_ID) {
+    return Promise.resolve({ ok: false, error: "no_status_updater_app_id" });
+  }
+  return triggerAgent(STATUS_UPDATER_APP_ID, process.env.CREAO_STATUS_UPDATER_API_KEY, {
+    memberId: input.memberId,
+    event: input.event,
+    data: JSON.stringify(input.data ?? {}),
+    ...(input.orderId ? { orderId: input.orderId } : {}),
   });
 }
 
