@@ -24,6 +24,16 @@ export async function POST(req: Request) {
   if (!parsed.success) return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   const input = parsed.data;
 
+  // Collapse repeated productIds. Repeats come from the agent overlapping
+  // "the usual" with an explicit ask ("the usual and some avocados" when
+  // avocados are already usual), so keep the larger quantity rather than
+  // summing — she wants one pack, not two.
+  const quantityById = new Map<string, number>();
+  for (const i of input.items) {
+    quantityById.set(i.productId, Math.max(quantityById.get(i.productId) ?? 0, i.quantity));
+  }
+  input.items = [...quantityById].map(([productId, quantity]) => ({ productId, quantity }));
+
   const products = await db
     .select()
     .from(schema.product)
