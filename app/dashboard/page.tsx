@@ -1,77 +1,12 @@
 import { desc, eq } from "drizzle-orm";
-
 import { db, schema } from "@/lib/db";
-
-import styles from "./dashboard.module.css";
+import { ActivityFeed, RefreshDashboard } from "./DashboardControls";
+import { DashboardIcon } from "./DashboardIcon";
+import { PrescriptionFollowUp } from "./PrescriptionFollowUp";
+import { formatCents, humanStage, orderStatusLabels, reviewReason, workflowFor } from "./presentation";
+import s from "./dashboard.module.css";
 
 export const dynamic = "force-dynamic";
-
-// Groups of order_event.stage values, in pipeline order, matching the 5-step
-// "Guardian in action" process: Request received -> Order prepared -> Family
-// safeguards -> Payment -> Order completed. Grouping real enum values under a
-// human label, not inventing new states.
-const WORKFLOW_GROUPS = [
-  { title: "Request received", text: "An ordinary conversation.", stages: ["call_received", "acknowledged", "intake_processing"] },
-  { title: "Order prepared", text: "The usual essentials.", stages: ["cart_built"] },
-  { title: "Family safeguards", text: "Your family's rules, checked.", stages: ["checking", "refused_scam", "error"] },
-  {
-    title: "Payment",
-    text: "The next step, after approval.",
-    stages: ["approved_auto", "needs_approval", "approver_notified", "approved_by_elena", "denied_by_elena", "paid"],
-  },
-  { title: "Order completed", text: "A clear record for your family.", stages: ["delivery_scheduled"] },
-] as const;
-
-const BLOCKED_STAGES = new Set(["refused_scam", "error"]);
-const HIGH_RISK_THRESHOLD = 70; // mirrors lib/services/rules.ts
-
-type OrderEvent = typeof schema.orderEvent.$inferSelect;
-type StepState = "done" | "active" | "pending" | "blocked";
-
-function computeWorkflowSteps(orderEvents: OrderEvent[]) {
-  let blocked = false;
-
-  const matches = WORKFLOW_GROUPS.map((group) => {
-    const match = [...orderEvents].reverse().find((e) => (group.stages as readonly string[]).includes(e.stage));
-    const isBlocked = match ? BLOCKED_STAGES.has(match.stage) : false;
-    if (isBlocked) blocked = true;
-    return { group, match, isBlocked };
-  });
-
-  const lastMatchedIndex = matches.reduce((acc, s, i) => (s.match ? i : acc), -1);
-
-  return matches.map(({ group, match, isBlocked }, i) => {
-    const implicitlyDone = !blocked && i < lastMatchedIndex;
-    const done = Boolean(match) || implicitlyDone;
-    const active = !blocked && !done && i === lastMatchedIndex + 1;
-    const state: StepState = isBlocked ? "blocked" : done ? "done" : active ? "active" : "pending";
-    return { title: group.title, text: group.text, state };
-  });
-}
-
-function formatCents(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
-
-function humanStage(stage: string): string {
-  const labels: Record<string, string> = {
-    call_received: "Call received",
-    acknowledged: "Request acknowledged",
-    intake_processing: "Request understood",
-    cart_built: "Order prepared",
-    checking: "Family safeguards checked",
-    approved_auto: "Order approved",
-    needs_approval: "Family review requested",
-    approver_notified: "Family notified",
-    approved_by_elena: "Approved by family",
-    denied_by_elena: "Declined by family",
-    paid: "Payment authorized",
-    delivery_scheduled: "Order confirmed",
-    refused_scam: "Request declined for safety",
-    error: "Something needs a second look",
-  };
-  return labels[stage] ?? stage.replace(/_/g, " ");
-}
 
 export default async function Dashboard() {
   const [approver] = await db.select().from(schema.approver).limit(1);
@@ -99,238 +34,72 @@ export default async function Dashboard() {
         .where(eq(schema.cartItem.cartId, latestOrder.cartId))
     : [];
 
-  const orderEvents = latestOrder ? events.filter((e) => e.orderId === latestOrder.id || e.orderId === null).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) : [];
-  const workflowSteps = latestOrder ? computeWorkflowSteps(orderEvents) : [];
-
+  const orderEvents = latestOrder ? events.filter(e => e.orderId === latestOrder.id).sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) : [];
+  const workflowSteps = latestOrder ? workflowFor(latestOrder.status, orderEvents.map(e => e.stage)) : [];
   const latestApproval = approvals[0];
-  const matchingApproval = latestOrder ? approvals.find((a) => a.orderId === latestOrder.id) : undefined;
-  const pendingApprovals = approvals.filter((a) => a.decision === "pending");
-  const today = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric" });
+  const matchingApproval = latestOrder ? approvals.find(a => a.orderId === latestOrder.id) : undefined;
+  const pendingApprovals = approvals.filter(a => a.decision === "pending");
+  const name = member?.preferredName ?? "Your family";
+  const now = new Date();
+  const timeZone = member?.timezone ?? "America/Los_Angeles";
+  const date = (value: Date) => value.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone });
+  const time = (value: Date) => value.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone });
+  const totalQuantity = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const frozen = Boolean(familyRules?.frozen);
 
-  // Group cart items by category for the summary row, matching the "Fresh
-  // produce / Pantry essentials / Milk & breakfast staples" style grouping —
-  // derived from the real product categories, not invented buckets.
-  const itemGroups = cartItems.reduce<Record<string, number>>((acc, item) => {
-    const key = item.category === "otc" ? "Household & OTC" : "Grocery essentials";
-    acc[key] = (acc[key] ?? 0) + item.quantity;
-    return acc;
-  }, {});
+  return <>
+    <section id="overview" className={s.headingRow}>
+      <div><p className={s.eyebrow}>A little closer, wherever you are</p><h1>{name === "Your family" ? "Your family, at a glance." : <>{name}, <em>at a glance.</em></>}</h1><p className={s.headingSupport}>The everyday, the updates, and the moments that need you.</p></div>
+      <div className={s.headingActions}><span className={s.dateLabel}>{date(now)} <span>·</span> Updated {time(now)}</span><RefreshDashboard /></div>
+    </section>
 
-  return (
-    <>
-      <div className={styles.breadcrumbRow}>
-        <span className={styles.breadcrumb}>Your family / Overview</span>
-        <span className={styles.breadcrumbDate}>{today}</span>
-      </div>
+    {frozen && <div className={s.freezeBanner} role="status"><DashboardIcon name="shield" /><div><strong>Requests are paused by your family’s rules.</strong><p>The family freeze is enabled. New requests are blocked while it remains on.</p></div></div>}
 
-      <section className={styles.heroPanel}>
-        <p className={styles.heroEyebrow}>A quieter kind of support</p>
-        <h1 className={styles.heroHeadline}>
-          {member?.preferredName ?? "Ruth"}&rsquo;s week looks {pendingApprovals.length > 0 ? "steady" : "good"}.
-        </h1>
-        <p className={styles.heroSupport}>
-          A quiet view of what Guardian handled, what is safe, and where your attention is needed.
-        </p>
-        <div className={styles.heroPills}>
-          <span className={styles.pill}>
-            <span className={styles.pillDot} aria-hidden="true" />
-            Guardian &middot; Sandbox payments
-          </span>
-          <span className={styles.pill}>
-            Daily order limit &middot; {familyRules ? formatCents(familyRules.dailySpendCapCents) : "Not set"}
-          </span>
-          <span className={styles.pillMuted}>Card status not available</span>
-        </div>
-      </section>
+    <div className={s.summaryStrip}>
+      <a href="#reviews" className={s.summaryItem}><span className={s.summaryIcon}><DashboardIcon name="check" /></span><div><span className={s.metricLabel}>Pending family reviews</span><strong>{pendingApprovals.length}<small>in the latest {approvals.length} reviews</small></strong></div><span className={s.metricArrow}>↗</span></a>
+      <a href="#latest-order" className={s.summaryItem}><span className={s.summaryIcon}><DashboardIcon name="bag" /></span><div><span className={s.metricLabel}>Latest order</span><strong>{latestOrder ? formatCents(latestOrder.subtotalCents) : "—"}<small>{latestOrder ? orderStatusLabels[latestOrder.status] : "No order recorded"}</small></strong></div><span className={s.metricArrow}>↗</span></a>
+      <a href="#safeguards" className={s.summaryItem}><span className={s.summaryIcon}><DashboardIcon name="shield" /></span><div><span className={s.metricLabel}>Daily spending cap</span><strong>{familyRules ? formatCents(familyRules.dailySpendCapCents) : "Not set"}<small>{frozen ? "Family freeze enabled" : "Your configured family limit"}</small></strong></div><span className={s.metricArrow}>↗</span></a>
+    </div>
 
-      <div className={styles.twoCol}>
-        <section className={styles.col}>
-          <p className={styles.sectionEyebrow}>The everyday, taken care of</p>
-          <h2 className={styles.sectionTitle}>A little more peace of mind.</h2>
-          <div className={styles.activityList}>
-            {events.length === 0 ? (
-              <p className={styles.emptyNote}>No activity yet. Trigger a call or text to see Guardian think.</p>
-            ) : (
-              events.slice(0, 4).map((e) => (
-                <div key={e.id} className={styles.activityRow}>
-                  <span className={BLOCKED_STAGES.has(e.stage) ? styles.activityCheckAlert : styles.activityCheck} aria-hidden="true">
-                    {BLOCKED_STAGES.has(e.stage) ? "!" : "✓"}
-                  </span>
-                  <div className={styles.activityBody}>
-                    <div className={styles.activityTitleRow}>
-                      <span className={styles.activityTitle}>{humanStage(e.stage)}</span>
-                      <span className={styles.activityTime}>{e.createdAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
-                    </div>
-                    <p className={styles.activityText}>{e.message}</p>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <a href="#" className={styles.viewLink}>
-            View full activity history →
-          </a>
+    <section id="reviews" className={pendingApprovals.length ? s.reviewPanel : s.clearPanel}>
+      <div className={s.reviewHeading}><span className={s.panelIcon}><DashboardIcon name={pendingApprovals.length ? "check" : "shield"} size={25} /></span><div><p className={s.eyebrow}>{pendingApprovals.length ? "Your attention makes the difference" : "A little breathing room"}</p><h2>{pendingApprovals.length ? `${pendingApprovals.length} request${pendingApprovals.length === 1 ? " needs" : "s need"} a family review.` : "No pending reviews among recent requests."}</h2><p>{pendingApprovals.length ? "Open a request to see its recorded review and decision status." : "New review requests will appear here. Refresh to check for updates."}</p></div><span className={s.reviewCount}>{pendingApprovals.length ? String(pendingApprovals.length).padStart(2, "0") : "✓"}</span></div>
+      {pendingApprovals.length > 0 && <div className={s.reviewList}>{pendingApprovals.map(a => <a key={a.id} href={`/approvals/${a.id}`} className={s.reviewItem}><div><strong>Request #{a.orderId.slice(0, 6)}</strong><span>{date(a.requestedAt)} · {time(a.requestedAt)} · Risk score {a.riskScore}</span></div><span className={a.expiresAt <= now ? s.warningBadge : s.neutralBadge}>{a.expiresAt <= now ? "Past expiry · status pending" : "Awaiting decision"}</span><span className={s.reviewLink}>View request <DashboardIcon name="arrow" size={17} /></span></a>)}</div>}
+    </section>
+
+    <div className={s.contentGrid}>
+      <div className={s.primaryColumn}>
+        <section id="latest-order" className={s.orderPanel}>
+          <div className={s.panelHeading}><div><p className={s.eyebrow}>The everyday essentials</p><h2>The latest request.</h2></div><span className={s.outlineIcon}><DashboardIcon name="bag" size={25} /></span></div>
+          {latestOrder ? <>
+            <div className={s.orderSummary}><div><span className={s.subLabel}>Order #{latestOrder.id.slice(0, 6)} · {date(latestOrder.createdAt)}</span><h3>{cartItems.some(i => i.category === "otc") ? "Groceries & everyday essentials" : "Everyday essentials"}</h3><p>{totalQuantity} item{totalQuantity === 1 ? "" : "s"} in this request</p></div><strong className={s.orderAmount}>{formatCents(latestOrder.subtotalCents)}</strong></div>
+            <div className={s.orderStatusRow}><span className={["denied", "cancelled"].includes(latestOrder.status) ? s.warningBadge : latestOrder.status === "pending_approval" ? s.neutralBadge : s.successBadge}>{orderStatusLabels[latestOrder.status] ?? latestOrder.status}</span><span>Recorded order status</span></div>
+            <ol className={s.workflowList} aria-label="Latest request progress">{workflowSteps.map((step, i) => <li key={step.title} className={s.workflowStep} data-state={step.state}><span className={s.stepDot}>{step.state === "done" ? <DashboardIcon name="check" size={13} /> : step.state === "blocked" ? "!" : i + 1}</span><h4>{step.title}</h4><p>{step.text}</p><span className="sr-only">{step.state}</span></li>)}</ol>
+            <details className={s.orderItems}><summary>Inside the request <span>{cartItems.length} product{cartItems.length === 1 ? "" : "s"} <b aria-hidden="true">+</b></span></summary>{cartItems.length ? <ul>{cartItems.map((item, i) => <li key={i}><span>{item.quantity} × {item.productName ?? "Product unavailable"}</span><span>{formatCents(item.priceCentsAtAdd * item.quantity)}</span></li>)}</ul> : <p className={s.emptyNote}>No line items recorded for this order.</p>}</details>
+            {matchingApproval && <a className={s.textLink} href={`/approvals/${matchingApproval.id}`}>View the recorded family review <DashboardIcon name="arrow" size={17} /></a>}
+          </> : <div className={s.emptyState}><DashboardIcon name="bag" size={30} /><h3>Room for the everyday.</h3><p>When a request becomes an order, its items and recorded progress will appear here.</p></div>}
         </section>
 
-        <section className={styles.col}>
-          <p className={styles.sectionEyebrow}>Everyday essentials</p>
-          <h2 className={styles.sectionTitle}>The latest order.</h2>
-          {latestOrder ? (
-            <>
-              <p className={styles.orderMeta}>
-                {latestOrder.createdAt.toLocaleDateString("en-US", { month: "long", day: "numeric" })} &middot; {cartItems.length} item{cartItems.length === 1 ? "" : "s"} &middot; Grocery request
-              </p>
-              <div className={styles.orderAmountRow}>
-                <span className={styles.orderLabel}>Everyday essentials</span>
-                <span className={styles.orderAmount}>{formatCents(latestOrder.subtotalCents)}</span>
-              </div>
-              <div className={styles.orderTags}>
-                <span className={styles.tag}>Family rules met</span>
-                <span className={styles.tagStrong}>{latestOrder.status === "pending_approval" ? "Awaiting approval" : "Approved"}</span>
-              </div>
-              {Object.keys(itemGroups).length > 0 ? (
-                <div className={styles.itemGroupList}>
-                  {Object.entries(itemGroups).map(([label, count]) => (
-                    <div key={label} className={styles.itemGroupRow}>
-                      <span>{label}</span>
-                      <span>{count} items</span>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              {matchingApproval ? (
-                <a href={`/approvals/${matchingApproval.id}`} className={styles.orderDetailsButton}>
-                  View order details ↗
-                </a>
-              ) : null}
-            </>
-          ) : (
-            <p className={styles.emptyNote}>No orders yet.</p>
-          )}
+        <section id="activity" className={s.activityPanel}>
+          <div className={s.panelHeading}><div><p className={s.eyebrow}>The story, as it happens</p><h2>Recent activity.</h2></div><span className={s.panelCount}>{events.length} events</span></div>
+          <ActivityFeed entries={events.map(e => ({ id: e.id, title: humanStage(e.stage), message: e.message, timestamp: `${date(e.createdAt)} · ${time(e.createdAt)}`, dateTime: e.createdAt.toISOString(), category: ["refused_scam", "error", "checking"].includes(e.stage) ? "safety" : ["needs_approval", "approver_notified", "approved_by_elena", "denied_by_elena", "approved_auto"].includes(e.stage) ? "reviews" : "requests" }))} />
+          <p className={s.panelFootnote}>Latest {events.length} recorded events · Times shown in {timeZone.replace(/_/g, " ")}</p>
         </section>
       </div>
 
-      <section className={styles.workflowSection}>
-        <p className={styles.sectionEyebrow}>Guardian in action</p>
-        <h2 className={styles.sectionTitle}>A familiar request. A thoughtful process.</h2>
-        {workflowSteps.length === 0 ? (
-          <p className={styles.emptyNote}>No requests yet.</p>
-        ) : (
-          <ol className={styles.workflowList}>
-            {workflowSteps.map((step, i) => (
-              <li key={step.title} className={styles.workflowStep}>
-                <div className={step.state === "pending" ? styles.workflowBarPending : step.state === "blocked" ? styles.workflowBarBlocked : styles.workflowBarDone} />
-                <span className={styles.workflowIndex}>0{i + 1}</span>
-                <h3 className={styles.workflowTitle}>{step.title}</h3>
-                <p className={styles.workflowText}>{step.text}</p>
-                <span
-                  className={
-                    step.state === "done"
-                      ? styles.statusBadgeDone
-                      : step.state === "active"
-                        ? styles.statusBadgeActive
-                        : step.state === "blocked"
-                          ? styles.statusBadgeBlocked
-                          : styles.statusBadgePending
-                  }
-                >
-                  {step.state === "done" ? "Completed" : step.state === "active" ? "Active" : step.state === "blocked" ? "Needs review" : "Waiting"}
-                </span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-
-      <section className={styles.scamShieldPanel}>
-        <div className={styles.scamShieldHeader}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 2l8 3.5v5.3c0 5-3.4 8.9-8 10.2-4.6-1.3-8-5.2-8-10.2V5.5L12 2z" stroke="#c96b5a" strokeWidth="2" strokeLinejoin="round" />
-          </svg>
-          <span className={styles.scamShieldLabel}>Scam Shield</span>
-        </div>
-        <h2 className={styles.scamShieldHeadline}>Thoughtful safeguards. At every step.</h2>
-        {latestApproval ? (
-          <>
-            <h3 className={styles.scamShieldSubheading}>Family rules checked</h3>
-            <p className={styles.scamShieldText}>
-              {latestApproval.riskScore >= HIGH_RISK_THRESHOLD
-                ? `This request scored ${latestApproval.riskScore} and was flagged for a closer look before anything happens.`
-                : "This request contains usual items and is within the family's configured approval limit."}
-            </p>
-            <p className={styles.scamShieldMeta}>
-              {latestApproval.requestedAt.toLocaleDateString("en-US", { month: "long", day: "numeric" })} &middot;{" "}
-              {latestApproval.requestedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })} &middot;{" "}
-              {latestApproval.decision === "pending" ? "No family decision requested for this review" : `Decision: ${latestApproval.decision}`}
-            </p>
-          </>
-        ) : (
-          <p className={styles.scamShieldText}>No safety reviews yet.</p>
-        )}
-        {scams.length > 0 ? (
-          <p className={styles.scamShieldMeta}>
-            Scam Shield has blocked {scams.length} suspicious request{scams.length === 1 ? "" : "s"} for this family.
-          </p>
-        ) : null}
-      </section>
-
-      <div className={styles.twoCol}>
-        <section className={styles.col}>
-          <p className={styles.sectionEyebrow}>The familiar routine</p>
-          <h2 className={styles.sectionTitle}>Prescriptions.</h2>
-          {prescriptions.length === 0 ? (
-            <p className={styles.emptyNote}>No prescriptions are linked to this family view yet.</p>
-          ) : (
-            <div className={styles.itemGroupList}>
-              {prescriptions.map((rx) => (
-                <div key={rx.id} className={styles.itemGroupRow}>
-                  <span>{rx.drug}</span>
-                  <span>{rx.refillsLeft} refills left</span>
-                </div>
-              ))}
-            </div>
-          )}
+      <aside className={s.secondaryColumn} aria-label="Family safeguards and routines">
+        <section id="safeguards" className={s.safetyPanel}>
+          <div className={s.safetyTitle}><DashboardIcon name="shield" size={24} /><span>Thoughtful safeguards</span></div><h2>A little care.<br />Clear boundaries.</h2>
+          <dl className={s.rulesList}><div><dt>Daily spending cap</dt><dd>{familyRules ? formatCents(familyRules.dailySpendCapCents) : "Not set"}</dd></div><div><dt>Auto-approval threshold</dt><dd>{familyRules ? formatCents(familyRules.autoApproveUnderCents) : "Not set"}</dd></div><div><dt>Family freeze</dt><dd>{familyRules ? frozen ? "Enabled · requests paused" : "Off" : "Not configured"}</dd></div></dl>
+          <p className={s.safetyNote}>Auto-approval also depends on familiar items, risk checks, and your family’s rules.</p>
+          {latestApproval ? <div className={s.lastReview}><span className={s.subLabel}>Latest recorded review</span><div><strong>{latestApproval.riskScore}<small> / 100 risk score</small></strong><span>{latestApproval.decision}</span></div>{latestApproval.reasons.length ? <ul>{latestApproval.reasons.map((reason, i) => <li key={i}>{reviewReason(reason)}</li>)}</ul> : <p>No reasons were recorded.</p>}<a href={`/approvals/${latestApproval.id}`}>See review details ↗</a></div> : <p className={s.safetyNote}>No safety review recorded yet.</p>}
         </section>
 
-        <section className={styles.col}>
-          <p className={styles.sectionEyebrow}>You&rsquo;re in the loop</p>
-          <h2 className={styles.sectionTitle}>Family updates.</h2>
-          <p className={styles.emptyNote}>No confirmed message deliveries to show yet. Review requests appear in your activity history.</p>
-        </section>
-      </div>
+        <section className={s.shieldPanel}><div className={s.panelHeading}><h2>Scam Shield</h2><DashboardIcon name="shield" /></div><p className={s.shieldCount}>{scams.length}<span>recent blocked request{scams.length === 1 ? "" : "s"}</span></p><p className={s.emptyNote}>From the latest {scams.length} recorded scam events.</p>{scams.length > 0 && <details className={s.blockedDetails}><summary>View recorded blocks <span aria-hidden="true">+</span></summary><ul>{scams.map(event => <li key={event.id}><strong>{date(event.blockedAt)} · {time(event.blockedAt)}</strong><p>{event.reasons.map(r => r.replace(/_/g, " ")).join(" · ") || "No reason recorded"}</p></li>)}</ul></details>}</section>
 
-      <section className={pendingApprovals.length > 0 ? styles.peacePanelAlert : styles.peacePanel}>
-        <div className={styles.peaceHeader}>
-          <span className={styles.peaceLabel}>Family peace of mind</span>
-        </div>
-        <div className={styles.peaceRow}>
-          <div>
-            <h2 className={styles.peaceHeadline}>
-              {pendingApprovals.length === 0
-                ? "No requests awaiting family review."
-                : `${pendingApprovals.length} request${pendingApprovals.length === 1 ? "" : "s"} awaiting family review.`}
-            </h2>
-            <p className={styles.peaceText}>
-              {pendingApprovals.length === 0
-                ? "A clear view of recorded activity, without the need to interrupt their day."
-                : "Take a look when you have a moment — nothing has been acted on yet."}
-            </p>
-          </div>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="12" cy="12" r="10" stroke={pendingApprovals.length > 0 ? "#c96b5a" : "#6e8a63"} strokeWidth="1.5" />
-            {pendingApprovals.length === 0 ? (
-              <path d="M8 12l2.5 2.5L16 9" stroke="#6e8a63" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            ) : (
-              <path d="M12 8v5M12 16h.01" stroke="#c96b5a" strokeWidth="1.5" strokeLinecap="round" />
-            )}
-          </svg>
-        </div>
-      </section>
-
-      <footer className={styles.footer}>
-        <span>guardian. &middot; Independence, with peace of mind</span>
-        <span>{approver?.fullName ?? "Family"} &middot; Connected to {member?.preferredName ?? "your family"}&rsquo;s real activity &middot; Sandbox payments</span>
-      </footer>
-    </>
-  );
+        <PrescriptionFollowUp records={prescriptions} />
+        <div className={s.familyNote}><DashboardIcon name="phone" size={24} /><p>Their independence.<br /><em>Your peace of mind.</em></p><span>Everyday help, a phone call away.</span></div>
+      </aside>
+    </div>
+    <footer className={s.footer}><span>guardian. <span>·</span> A little help. A lot of life.</span><span>{approver?.fullName ?? "Family"} · {member ? `${name}’s recorded activity` : "No family member linked"} · Sandbox payments</span></footer>
+  </>;
 }

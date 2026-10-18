@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 
 import styles from "./GuardianFeatureMap.module.css";
-import { ScrollTrigger, gsap, prefersReducedMotion } from "./gsapSetup";
+import { gsap, ScrollTrigger } from "./gsapSetup";
 
 const FEATURE_POINTS = [
   {
@@ -38,149 +38,117 @@ const FEATURE_POINTS = [
   },
 ] as const;
 
-// Matches the ring geometry below (viewBox 680x680, r=272) so the drawn arc's
-// leading edge lines up with each point's angular position on the circle.
-const RING_RADIUS = 272;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-const DESKTOP_BREAKPOINT = 760; // keep in sync with the CSS circle/list breakpoint
-
+// Adapted reveal choreography from cnippet-dev's 21st.dev Scroll Reveal.
+// GSAP owns both the reveals and the SVG drawing; Motion is not needed.
 export function GuardianFeatureMap() {
   const sectionRef = useRef<HTMLElement>(null);
-  const ringPathRef = useRef<SVGPathElement>(null);
-  const [manualId, setManualId] = useState<string | null>(null);
-  const [revealedCount, setRevealedCount] = useState<number>(FEATURE_POINTS.length);
-  const [activeIndex, setActiveIndex] = useState<number>(FEATURE_POINTS.length - 1);
-  const [scrollDriven, setScrollDriven] = useState(false);
+  const journeyRef = useRef<HTMLOListElement>(null);
 
   useEffect(() => {
-    if (prefersReducedMotion() || !sectionRef.current || !ringPathRef.current) {
-      return;
-    }
+    const section = sectionRef.current;
+    const journey = journeyRef.current;
+    if (!section || !journey) return;
 
-    const ringPath = ringPathRef.current;
-
-    // ScrollTrigger.matchMedia re-evaluates on resize/orientation change, so
-    // a window crossing the desktop breakpoint (not just the initial mount
-    // width) correctly switches between the pinned circle and the plain,
-    // always-visible state the mobile stacked list expects.
     const mm = gsap.matchMedia();
+    mm.add(
+      {
+        desktop: "(min-width: 761px)",
+        mobile: "(max-width: 760px)",
+        reduced: "(prefers-reduced-motion: reduce)",
+      },
+      (context) => {
+        if (context.conditions?.reduced) return;
 
-    mm.add(`(min-width: ${DESKTOP_BREAKPOINT}px)`, () => {
-      setScrollDriven(true);
-      setRevealedCount(0);
-      setActiveIndex(-1);
-      ringPath.style.strokeDasharray = `${RING_CIRCUMFERENCE}`;
-      ringPath.style.strokeDashoffset = `${RING_CIRCUMFERENCE}`;
+        const rows = Array.from(journey.querySelectorAll<HTMLElement>("[data-milestone]"));
+        const paths = rows.map((row) => row.querySelector<SVGPathElement>(
+          context.conditions?.desktop ? "[data-desktop-path]" : "[data-mobile-path]",
+        )!);
+        const copies = rows.map((row) => row.querySelector<HTMLElement>("[data-copy]")!);
+        const dots = rows.map((row) => row.querySelector<HTMLElement>("[data-dot]")!);
 
-      const trigger = ScrollTrigger.create({
-        trigger: sectionRef.current,
-        start: "top top",
-        end: () => "+=" + window.innerHeight * 2.6,
-        pin: true,
-        scrub: 0.4,
-        anticipatePin: 1,
-        onUpdate: (self) => {
-          const progress = self.progress;
-          gsap.set(ringPath, { strokeDashoffset: RING_CIRCUMFERENCE * (1 - progress) });
+        // Only enhance after initialization: server HTML and reduced-motion mode
+        // always expose the complete story and a fully drawn connecting line.
+        paths.forEach((path) => {
+          const length = path.getTotalLength();
+          gsap.set(path, { strokeDasharray: length, strokeDashoffset: length });
+        });
+        gsap.set(copies, { opacity: 0, y: 22 });
+        gsap.set(dots, { scale: 0.65, backgroundColor: "#f8f3f0" });
 
-          const index = Math.min(FEATURE_POINTS.length - 1, Math.floor(progress * FEATURE_POINTS.length));
-          setActiveIndex((prev) => (prev === index ? prev : index));
-          setRevealedCount((prev) => {
-            const next = progress <= 0 ? 0 : index + 1;
-            return prev === next ? prev : next;
-          });
-        },
-      });
+        const timeline = gsap.timeline({
+          defaults: { ease: "none" },
+          scrollTrigger: {
+            trigger: journey,
+            start: "top 85%",
+            end: "bottom 62%",
+            scrub: 0.35,
+            invalidateOnRefresh: true,
+          },
+        });
 
-      return () => {
-        trigger.kill();
-        setScrollDriven(false);
-        setRevealedCount(FEATURE_POINTS.length);
-        setActiveIndex(FEATURE_POINTS.length - 1);
-      };
+        rows.forEach((_, index) => {
+          const beat = index;
+          timeline
+            .to(paths[index], { strokeDashoffset: 0, duration: 0.55, ease: "power1.inOut" }, beat)
+            .to(dots[index], { scale: 1, backgroundColor: "#8173b5", duration: 0.18 }, beat + 0.4)
+            .to(copies[index], { opacity: 1, y: 0, duration: 0.38, ease: "power2.out" }, beat + 0.35);
+          if (index > 0) {
+            timeline.to(copies[index - 1], { opacity: 0.82, duration: 0.3 }, beat + 0.4);
+            timeline.to(dots[index - 1], { scale: 0.75, duration: 0.3 }, beat + 0.4);
+          }
+          // Leave the line still while each milestone has its reading beat.
+          timeline.to({}, { duration: 0.27 }, beat + 0.73);
+        });
+
+      },
+      section,
+    );
+
+    // Local web fonts can change the heading after the first measurement.
+    let disposed = false;
+    document.fonts.ready.then(() => {
+      if (!disposed) ScrollTrigger.refresh();
     });
-
-    return () => mm.revert();
+    return () => {
+      disposed = true;
+      mm.revert();
+    };
   }, []);
 
-  function handleSelect(id: string) {
-    setManualId((current) => (current === id ? null : id));
-  }
-
-  const activePoint =
-    (manualId && FEATURE_POINTS.find((p) => p.id === manualId)) ||
-    (activeIndex >= 0 ? FEATURE_POINTS[activeIndex] : null);
-
   return (
-    <section
-      id="features"
-      ref={sectionRef}
-      className={styles.section}
-      aria-label="What Guardian helps with"
-    >
+    <section id="features" ref={sectionRef} className={styles.section} aria-labelledby="features-title">
       <div className={styles.heading}>
         <p className={styles.eyebrow}>What Guardian solves</p>
-        <h2 className={styles.title}>One call, a lot quietly handled.</h2>
+        <h2 id="features-title" className={styles.title}>One call, a lot quietly handled.</h2>
       </div>
 
-      <div className={styles.map} data-scroll-driven={scrollDriven || undefined}>
-        <svg className={styles.ringSvg} viewBox="0 0 680 680" aria-hidden="true">
-          <circle className={styles.ringTrack} cx="340" cy="340" r={RING_RADIUS} />
-          <path
-            ref={ringPathRef}
-            className={styles.ringPath}
-            d="M340 68 A272 272 0 1 1 340 612 A272 272 0 1 1 340 68"
-          />
-        </svg>
-
-        <div className={styles.center} aria-live="polite">
-          {activePoint ? (
-            <div className={styles.centerSelected}>
-              <div className={styles.centerSelectedLabel}>{activePoint.label}</div>
-              <p className={styles.centerSelectedText}>{activePoint.explanation}</p>
-              {manualId ? (
-                <button type="button" className={styles.centerBack} onClick={() => setManualId(null)}>
-                  ← Guardian
-                </button>
-              ) : null}
-            </div>
-          ) : (
-            <div className={styles.centerDefault}>
-              <div className={styles.centerWord}>Guardian</div>
-              <p className={styles.centerHint}>Keep scrolling</p>
-            </div>
-          )}
-        </div>
-
-        <ul className={styles.pointList}>
-          {FEATURE_POINTS.map((point, i) => {
-            const revealed = i < revealedCount;
-            const isActive = activePoint?.id === point.id;
-            return (
-              <li
-                key={point.id}
-                className={`${styles.pointItem} ${styles[`pointItem${i + 1}` as keyof typeof styles]} ${revealed ? styles.pointItemRevealed : ""}`}
-              >
-                <button
-                  type="button"
-                  className={`${styles.pointButton} ${isActive ? styles.pointButtonActive : ""}`}
-                  aria-pressed={isActive}
-                  aria-expanded={manualId === point.id}
-                  aria-hidden={!revealed}
-                  tabIndex={revealed ? 0 : -1}
-                  onClick={() => handleSelect(point.id)}
-                >
-                  <span className={styles.pointDot} aria-hidden="true" />
-                  <span className={styles.pointLabel}>{point.label}</span>
-                </button>
-                <p className={styles.pointExplanation} hidden={manualId !== point.id}>
-                  {point.explanation}
-                </p>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
+      <ol ref={journeyRef} className={styles.journey}>
+        {FEATURE_POINTS.map((point, index) => {
+          const left = index % 2 === 0;
+          const previousX = index === 0 ? 500 : left ? 560 : 440;
+          const x = left ? 440 : 560;
+          return (
+            <li key={point.id} className={styles.milestone} data-milestone>
+              <svg className={styles.desktopLine} viewBox="0 0 1000 260" preserveAspectRatio="none" aria-hidden="true">
+                <path
+                  data-desktop-path
+                  d={`M ${previousX} 0 C ${previousX} 110, ${x} 150, ${x} 260`}
+                  className={styles.line}
+                />
+              </svg>
+              <svg className={styles.mobileLine} viewBox="0 0 56 260" preserveAspectRatio="none" aria-hidden="true">
+                <path data-mobile-path d="M 28 0 C 62 85, -6 175, 28 260" className={styles.line} />
+              </svg>
+              <span className={styles.dot} data-dot aria-hidden="true" />
+              <div className={styles.copy} data-copy>
+                <span className={styles.number} aria-hidden="true">{String(index + 1).padStart(2, "0")} / 06</span>
+                <h3 className={styles.label}>{point.label}</h3>
+                <p className={styles.explanation}>{point.explanation}</p>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
     </section>
   );
 }

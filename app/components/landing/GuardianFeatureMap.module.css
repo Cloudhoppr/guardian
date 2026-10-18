@@ -1,14 +1,13 @@
 .section {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: clamp(32px, 5vw, 56px);
-  padding: clamp(64px, 9vw, 112px) clamp(20px, 6vw, 72px);
-  background: linear-gradient(180deg, #f8f3f0 0%, #f8f3f0 68%, #ede8f5 100%);
+  padding: clamp(64px, 9vw, 112px) clamp(20px, 6vw, 72px) 80px;
+  background: linear-gradient(180deg, #f8f3f0 0%, #f8f3f0 78%, #ede8f5 100%);
+  color: #33283d;
 }
 
 .heading {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -35,256 +34,118 @@
   max-width: 620px;
 }
 
-/* Desktop circle */
-
-.map {
+.journey {
   position: relative;
-  width: min(680px, 100%);
-  aspect-ratio: 1 / 1;
-}
-
-.ringSvg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  overflow: visible;
-}
-
-.ringTrack {
-  fill: none;
-  stroke: rgba(51, 40, 61, 0.12);
-  stroke-width: 1;
-}
-
-.ringPath {
-  fill: none;
-  stroke: #8173b5;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-}
-
-.center {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: min(280px, 56%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-}
-
-.centerDefault,
-.centerSelected {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-}
-
-.centerWord {
-  font-family: var(--font-serif);
-  font-size: clamp(1.5rem, 2.6vw, 2rem);
-  color: #33283d;
-}
-
-.centerHint {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  color: #756d80;
-  margin: 0;
-}
-
-.centerSelectedLabel {
-  font-family: var(--font-serif);
-  font-size: clamp(1.125rem, 2vw, 1.375rem);
-  color: #33283d;
-}
-
-.centerSelectedText {
-  font-family: var(--font-sans);
-  font-size: 13px;
-  line-height: 1.55;
-  color: #756d80;
-  margin: 0;
-}
-
-.centerBack {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
-  color: #8173b5;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.centerBack:focus-visible,
-.pointButton:focus-visible {
-  outline: 2px solid #8173b5;
-  outline-offset: 2px;
-}
-
-.pointList {
-  margin: 0;
+  width: min(1000px, 100%);
+  margin: 60px auto 0;
   padding: 0;
   list-style: none;
 }
 
-.pointItem {
-  position: absolute;
-  width: 170px;
-  transform: translate(-50%, -50%);
-  transition: opacity 0.35s ease, transform 0.35s ease;
-}
-
-.map[data-scroll-driven] .pointItem {
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0.85);
-}
-
-.map[data-scroll-driven] .pointItem.pointItemRevealed {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1);
-}
-
-.pointItem1 {
-  top: 10%;
-  left: 50%;
-}
-.pointItem2 {
-  top: 30%;
-  left: 84.6%;
-}
-.pointItem3 {
-  top: 70%;
-  left: 84.6%;
-}
-.pointItem4 {
-  top: 90%;
-  left: 50%;
-}
-.pointItem5 {
-  top: 70%;
-  left: 15.4%;
-}
-.pointItem6 {
-  top: 30%;
-  left: 15.4%;
-}
-
-.pointButton {
+.milestone {
+  position: relative;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 8px;
-  transition: transform 0.3s ease;
+  min-height: 260px;
 }
 
-.pointDot {
+.desktopLine,
+.mobileLine {
+  position: absolute;
+  top: -50%;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+}
+
+.mobileLine { display: none; }
+
+.milestone:first-child .desktopLine,
+.milestone:first-child .mobileLine {
+  top: 0;
+  height: 50%;
+}
+
+.line {
+  fill: none;
+  stroke: #8173b5;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.dot {
+  position: absolute;
+  top: calc(50% - 5px);
+  left: calc(44% - 5px);
   width: 10px;
   height: 10px;
+  border: 1px solid #8173b5;
   border-radius: 50%;
-  border: 1.5px solid #8173b5;
-  background-color: transparent;
-  transition: background-color 0.15s ease, box-shadow 0.3s ease;
+  background: #8173b5;
+  box-shadow: 0 0 0 7px #f8f3f0;
 }
 
-.pointButton[aria-pressed="true"] .pointDot {
-  background-color: #8173b5;
+.milestone:nth-child(even) .dot { left: calc(56% - 5px); }
+
+.copy {
+  position: relative;
+  width: 35%;
+  padding: 24px 0;
 }
 
-.pointButtonActive .pointDot {
-  box-shadow: 0 0 0 5px rgba(129, 115, 181, 0.22);
-}
+.milestone:nth-child(even) .copy { margin-left: 65%; }
 
-.pointButtonActive .pointLabel {
-  color: #33283d;
-  font-weight: 600;
-}
-
-.pointLabel {
+.number {
+  display: block;
+  margin-bottom: 16px;
   font-family: var(--font-sans);
-  font-size: 14px;
-  color: #756d80;
-  text-align: center;
-  line-height: 1.4;
-  transition: color 0.3s ease, font-weight 0.3s ease;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  color: #8173b5;
 }
 
-.pointExplanation {
-  display: none;
+.label {
+  margin: 0 0 14px;
+  font-family: var(--font-serif);
+  font-size: clamp(1.5rem, 2.6vw, 2rem);
+  font-weight: 400;
+  line-height: 1.2;
+  color: #33283d;
 }
 
-/* Mobile: stacked sequence instead of circle */
+.explanation {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.7;
+  color: #514659;
+  max-width: 340px;
+}
 
 @media (max-width: 760px) {
-  .map {
-    width: 100%;
-    aspect-ratio: auto;
+  .section { padding-bottom: 56px; }
+  .heading { align-items: flex-start; text-align: left; }
+  .journey { margin-top: 36px; }
+  .milestone { min-height: 240px; }
+  .desktopLine { display: none; }
+  .mobileLine { display: block; width: 56px; }
+  .dot,
+  .milestone:nth-child(even) .dot { left: 23px; }
+  .copy,
+  .milestone:nth-child(even) .copy {
+    width: calc(100% - 80px);
+    margin-left: 80px;
   }
-
-  .ring,
-  .center {
-    display: none;
-  }
-
-  .pointList {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .pointItem {
-    position: static;
-    width: 100%;
-    transform: none;
-    border-bottom: 1px solid rgba(51, 40, 61, 0.12);
-    padding: 18px 0;
-  }
-
-  .pointButton {
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 14px;
-    min-height: 44px;
-    padding: 4px 0;
-  }
-
-  .pointLabel {
-    text-align: left;
-    font-size: 16px;
-  }
-
-  .pointExplanation[hidden] {
-    display: none;
-  }
-
-  .pointExplanation:not([hidden]) {
-    display: block;
-    font-family: var(--font-sans);
-    font-size: 14px;
-    line-height: 1.6;
-    color: #756d80;
-    margin: 10px 0 0 24px;
-  }
+  .label { font-size: clamp(1.375rem, 5vw, 1.75rem); }
+  .explanation { font-size: 14px; }
 }
 
+/* Normal document flow and fully visible content are the default. */
 @media (prefers-reduced-motion: reduce) {
-  .pointDot,
-  .pointItem,
-  .pointButton,
-  .pointLabel {
-    transition: none;
-  }
+  .copy { opacity: 1 !important; transform: none !important; }
+  .line { stroke-dashoffset: 0 !important; }
 }
