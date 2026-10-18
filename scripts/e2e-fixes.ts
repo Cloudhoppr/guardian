@@ -119,8 +119,9 @@ async function main() {
     body: JSON.stringify({ memberId, transcript: "test probe" }),
   });
   const probeBody = await callProbe.json();
+  const errText = (probeBody as { error?: string }).error ?? "";
   line(
-    callProbe.status === 500 && (probeBody as { error?: string }).error?.includes("ELEVENLABS_WEBHOOK_SECRET"),
+    callProbe.status === 500 && errText.includes("ELEVENLABS_WEBHOOK_SECRET"),
     "F5 call-ended fails closed in production without secret",
     `status=${callProbe.status} body=${JSON.stringify(probeBody)}`,
   );
