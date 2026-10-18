@@ -39,8 +39,7 @@ export type TriggerResult =
 
 const PURCHASER_APP_ID = "e60ae93c-e43c-428d-a31b-b8bde26b06ac";
 const SCAM_SHIELD_APP_ID = "d6d408af-c7d8-40e9-ae78-12a2b9c29d50";
-// Set this once the Status Updater agent is created on agent.creao.ai.
-const STATUS_UPDATER_APP_ID = process.env.CREAO_STATUS_UPDATER_AGENT_ID ?? "";
+const STATUS_UPDATER_APP_ID = "7cccd992-1b61-4c4a-b7eb-f687a70f12c5";
 
 async function triggerAgent(
   appId: string,
@@ -109,9 +108,6 @@ export type TriggerStatusUpdaterInput = {
 };
 
 export function triggerStatusUpdater(input: TriggerStatusUpdaterInput): Promise<TriggerResult> {
-  if (!STATUS_UPDATER_APP_ID) {
-    return Promise.resolve({ ok: false, error: "no_status_updater_app_id" });
-  }
   return triggerAgent(STATUS_UPDATER_APP_ID, process.env.CREAO_STATUS_UPDATER_API_KEY, {
     memberId: input.memberId,
     event: input.event,
