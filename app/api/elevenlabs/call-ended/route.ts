@@ -15,6 +15,7 @@
 import crypto from "node:crypto";
 
 import { eq } from "drizzle-orm";
+import { after } from "next/server";
 import { z } from "zod";
 
 import { db, schema } from "@/lib/db";
@@ -148,10 +149,12 @@ export async function POST(req: Request) {
 
   // Fire-and-forget to the saved CREAO Purchaser agent via its API Trigger.
   // Don't await — ElevenLabs is waiting on us and the agent runs for ~30-90s.
+  // after() keeps the Vercel function alive until the trigger request lands;
+  // a bare `void` let the runtime freeze mid-fetch.
   // The Purchaser calls our /api/creao/tools/* endpoints as it works, so
   // status updates flow back to Grandma via Photon in real time without us
   // holding this request open.
-  void triggerPurchaser({
+  after(triggerPurchaser({
     memberId: resolvedMember.id,
     transcript: input.transcript,
     channel: "voice",
@@ -160,7 +163,7 @@ export async function POST(req: Request) {
     if (!result.ok) {
       console.error("[call-ended] triggerPurchaser failed:", result.error);
     }
-  });
+  }));
 
   return Response.json({ ok: true, memberId: resolvedMember.id });
 }

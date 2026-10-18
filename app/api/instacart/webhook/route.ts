@@ -4,6 +4,7 @@
 // the substitution question read aloud (not just a text she might miss).
 
 import { eq } from "drizzle-orm";
+import { after } from "next/server";
 
 import { db, schema } from "@/lib/db";
 import { triggerVoiceReader } from "@/lib/providers/creao";
@@ -61,14 +62,14 @@ export async function POST(req: Request) {
         ? `Instacart is out of ${d.originalItem}. Can we substitute with ${d.substituteItem} instead? Say yes or no.`
         : `Instacart has a substitution for your order. Please check your messages and reply yes or no.`;
 
-    void triggerVoiceReader({
+    after(triggerVoiceReader({
       memberId: member.id,
       textToRead,
       context: "substitution",
       orderId: event.orderId,
     }).then((r) => {
       if (!r.ok) console.error("[instacart/webhook] triggerVoiceReader failed:", r.error);
-    });
+    }));
   }
 
   return Response.json({ ok: true });
