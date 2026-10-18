@@ -38,11 +38,15 @@ export type TriggerResult =
   | { ok: false; error: string };
 
 const PURCHASER_APP_ID = "e60ae93c-e43c-428d-a31b-b8bde26b06ac";
+const SCAM_SHIELD_APP_ID = "d6d408af-c7d8-40e9-ae78-12a2b9c29d50";
 
-export async function triggerPurchaser(input: TriggerPurchaserInput): Promise<TriggerResult> {
-  const apiKey = process.env.CREAO_PURCHASER_API_KEY;
+async function triggerAgent(
+  appId: string,
+  apiKey: string | undefined,
+  inputs: Record<string, unknown>,
+): Promise<TriggerResult> {
   if (!apiKey) {
-    console.warn("[creao] CREAO_PURCHASER_API_KEY not set — skipping real trigger");
+    console.warn(`[creao] api key for app ${appId} not set — skipping`);
     return { ok: false, error: "no_api_key_configured" };
   }
 
@@ -52,21 +56,13 @@ export async function triggerPurchaser(input: TriggerPurchaserInput): Promise<Tr
     ? `${publicUrl}/api/creao/callback?secret=${encodeURIComponent(callbackSecret)}`
     : undefined;
 
-  const res = await fetch(`https://agent.creao.ai/api/v1/apps/${PURCHASER_APP_ID}/runs`, {
+  const res = await fetch(`https://agent.creao.ai/api/v1/apps/${appId}/runs`, {
     method: "POST",
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      inputs: {
-        memberId: input.memberId,
-        transcript: input.transcript,
-        channel: input.channel,
-        ...(input.newItems ? { newItems: input.newItems } : {}),
-      },
-      ...(webhookUrl ? { webhookUrl } : {}),
-    }),
+    body: JSON.stringify({ inputs, ...(webhookUrl ? { webhookUrl } : {}) }),
   });
 
   if (!res.ok) {
@@ -74,6 +70,29 @@ export async function triggerPurchaser(input: TriggerPurchaserInput): Promise<Tr
   }
   const data = (await res.json()) as { id: string; status: string };
   return { ok: true, runId: data.id, status: data.status };
+}
+
+export function triggerPurchaser(input: TriggerPurchaserInput): Promise<TriggerResult> {
+  return triggerAgent(PURCHASER_APP_ID, process.env.CREAO_PURCHASER_API_KEY, {
+    memberId: input.memberId,
+    transcript: input.transcript,
+    channel: input.channel,
+    ...(input.newItems ? { newItems: input.newItems } : {}),
+  });
+}
+
+export type TriggerScamShieldInput = {
+  memberId: string;
+  inboundMessage: string;
+  channel: "sms" | "imessage" | "voice";
+};
+
+export function triggerScamShield(input: TriggerScamShieldInput): Promise<TriggerResult> {
+  return triggerAgent(SCAM_SHIELD_APP_ID, process.env.CREAO_SCAM_SHIELD_API_KEY, {
+    memberId: input.memberId,
+    inboundMessage: input.inboundMessage,
+    channel: input.channel,
+  });
 }
 
 export async function askAgent(call: AgentCall): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
