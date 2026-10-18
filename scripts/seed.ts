@@ -2,6 +2,7 @@
 // safe to run twice because unique constraints prevent dupes on phone / sku.
 
 import { db, schema } from "@/lib/db";
+import { GRANDMA_PHONE_E164 } from "@/lib/demo";
 
 const GROCERIES = [
   ["GRO-MILK-2PC", "2% Milk (gallon)", 429, ["milk"]],
@@ -62,7 +63,7 @@ async function main() {
     .values({
       fullName: "Ruth Alvarez",
       preferredName: "Ruth",
-      phoneE164: "+15551234567",
+      phoneE164: GRANDMA_PHONE_E164,
       dateOfBirth: "1948-04-12",
       dietaryPrefs: ["low-sodium"],
       timezone: "America/Los_Angeles",
