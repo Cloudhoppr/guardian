@@ -40,8 +40,7 @@ export type TriggerResult =
 const PURCHASER_APP_ID = "e60ae93c-e43c-428d-a31b-b8bde26b06ac";
 const SCAM_SHIELD_APP_ID = "d6d408af-c7d8-40e9-ae78-12a2b9c29d50";
 const STATUS_UPDATER_APP_ID = "7cccd992-1b61-4c4a-b7eb-f687a70f12c5";
-// Set via env until the Voice Reader agent is created on agent.creao.ai.
-const VOICE_READER_APP_ID = process.env.CREAO_VOICE_READER_AGENT_ID ?? "";
+const VOICE_READER_APP_ID = "71c93be7-247b-4fe4-9f85-c92efa0e4b57";
 
 async function triggerAgent(
   appId: string,
@@ -129,9 +128,6 @@ export type TriggerVoiceReaderInput = {
 };
 
 export function triggerVoiceReader(input: TriggerVoiceReaderInput): Promise<TriggerResult> {
-  if (!VOICE_READER_APP_ID) {
-    return Promise.resolve({ ok: false, error: "no_voice_reader_app_id" });
-  }
   return triggerAgent(VOICE_READER_APP_ID, process.env.CREAO_VOICE_READER_API_KEY, {
     memberId: input.memberId,
     textToRead: input.textToRead,
