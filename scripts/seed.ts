@@ -27,6 +27,8 @@ const GROCERIES = [
   ["GRO-SALT", "Table Salt", 149, ["salt"]],
   ["GRO-PEPPER", "Black Pepper", 299, ["pepper"]],
   ["GRO-TOMATO", "Tomatoes (lb)", 329, ["tomatoes"]],
+  // Always "out of stock" — create_cart proposes a substitution for it.
+  ["GRO-AVOCADO", "Avocados (4 ct)", 499, ["avocados", "avocado"]],
   ["GRO-LETTUCE", "Romaine Lettuce", 299, ["lettuce"]],
   ["GRO-CARROT", "Carrots (2 lb)", 249, ["carrots"]],
   ["GRO-POTATO", "Potatoes (5 lb)", 449, ["potatoes"]],

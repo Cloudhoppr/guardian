@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { after } from "next/server";
 
 import { db, schema } from "@/lib/db";
-import { triggerVoiceReader } from "@/lib/providers/creao";
+import { proposeSubstitution } from "@/lib/services/substitution";
 
 type SubstitutionDetails = {
   originalItem?: string;
@@ -35,14 +35,24 @@ export async function POST(req: Request) {
     .limit(1);
   if (!member) return Response.json({ error: "unknown_member" }, { status: 404 });
 
+  // Substitutions log their own needs_approval row and fire the Voice Reader
+  // so Grandma hears the question read aloud (shared with create_cart).
+  if (event.type === "substitution_proposed" && event.details) {
+    after(proposeSubstitution({
+      memberId: member.id,
+      orderId: event.orderId,
+      originalItem: event.details.originalItem,
+      substituteItem: event.details.substituteItem,
+    }));
+    return Response.json({ ok: true });
+  }
+
   const stage =
-    event.type === "substitution_proposed"
-      ? "needs_approval"
-      : event.type === "order_placed"
-        ? "paid"
-        : event.type === "order_delivered"
-          ? "delivery_scheduled"
-          : "error";
+    event.type === "order_placed"
+      ? "paid"
+      : event.type === "order_delivered"
+        ? "delivery_scheduled"
+        : "error";
 
   await db.insert(schema.orderEvent).values({
     memberId: member.id,
@@ -51,26 +61,6 @@ export async function POST(req: Request) {
     message: `Instacart: ${event.type}`,
     payload: JSON.stringify(event.details ?? {}),
   });
-
-  // For substitutions, fire the Voice Reader so Grandma hears the question
-  // read aloud. The agent composes a short "we're subbing X for Y, say yes
-  // or no" and calls our speak tool to generate the audio.
-  if (event.type === "substitution_proposed" && event.details) {
-    const d = event.details;
-    const textToRead =
-      d.originalItem && d.substituteItem
-        ? `Instacart is out of ${d.originalItem}. Can we substitute with ${d.substituteItem} instead? Say yes or no.`
-        : `Instacart has a substitution for your order. Please check your messages and reply yes or no.`;
-
-    after(triggerVoiceReader({
-      memberId: member.id,
-      textToRead,
-      context: "substitution",
-      orderId: event.orderId,
-    }).then((r) => {
-      if (!r.ok) console.error("[instacart/webhook] triggerVoiceReader failed:", r.error);
-    }));
-  }
 
   return Response.json({ ok: true });
 }
