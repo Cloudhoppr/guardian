@@ -1,9 +1,11 @@
 .hero {
   position: relative;
   width: 100%;
-  min-height: 820px;
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
   overflow: hidden;
-  background-color: #302942;
+  background-color: #33283d;
 }
 
 .heroBackground {
@@ -19,10 +21,10 @@
   inset: 0;
   background-image: linear-gradient(
     90deg,
-    rgba(48, 41, 66, 0.7) 0%,
-    rgba(48, 41, 66, 0.46) 32%,
-    rgba(48, 41, 66, 0.14) 60%,
-    rgba(48, 41, 66, 0) 80%
+    rgba(51, 40, 61, 0.7) 0%,
+    rgba(51, 40, 61, 0.46) 32%,
+    rgba(51, 40, 61, 0.14) 60%,
+    rgba(51, 40, 61, 0) 80%
   );
 }
 
@@ -32,7 +34,25 @@
   left: 0;
   width: 100%;
   height: 160px;
-  background-image: linear-gradient(180deg, rgba(250, 248, 246, 0) 0%, #faf8f6 100%);
+  background-image: linear-gradient(180deg, rgba(248, 243, 240, 0) 0%, #f8f3f0 100%);
+}
+
+.connectionArc,
+.connectionArcRight {
+  position: absolute;
+  top: 0;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.connectionArc {
+  right: -60px;
+}
+
+.connectionArcRight {
+  right: 220px;
+  top: 60px;
+  opacity: 0.2;
 }
 
 /* Nav */
@@ -69,6 +89,15 @@
   font-weight: 500;
   color: #ffffff;
   text-decoration: none;
+  border-radius: 4px;
+}
+
+.navLink:focus-visible,
+.navCta:focus-visible,
+.primaryCta:focus-visible,
+.secondaryCta:focus-visible {
+  outline: 2px solid #f5e4db;
+  outline-offset: 3px;
 }
 
 .navCta {
@@ -76,16 +105,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 44px;
   padding: 11px 22px;
   border-radius: 8px;
   background-color: #ffffff;
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 600;
-  color: #302942;
+  color: #33283d;
   text-decoration: none;
   border: none;
   cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.navCta:hover {
+  background-color: #f5e4db;
 }
 
 /* Hero copy */
@@ -94,11 +129,10 @@
   position: absolute;
   bottom: 120px;
   left: 72px;
-  width: 700px;
-  max-width: calc(100% - 144px);
+  width: min(700px, calc(100% - 144px));
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: clamp(16px, 2vw, 26px);
   z-index: 2;
 }
 
@@ -108,13 +142,14 @@
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #f4dfd8;
+  color: #f5e4db;
+  margin: 0;
 }
 
 .headline {
   font-family: var(--font-serif);
-  font-size: 96px;
-  line-height: 1.02;
+  font-size: clamp(2.75rem, 6.6vw, 6rem);
+  line-height: 1.04;
   letter-spacing: -0.01em;
   color: #ffffff;
   margin: 0;
@@ -123,7 +158,7 @@
 
 .support {
   font-family: var(--font-sans);
-  font-size: 17px;
+  font-size: clamp(0.9375rem, 1.1vw + 0.6rem, 1.0625rem);
   line-height: 1.6;
   max-width: 480px;
   color: rgba(255, 255, 255, 0.82);
@@ -142,19 +177,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 44px;
   padding: 16px 30px;
   border-radius: 6px;
   background-color: #ffffff;
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 600;
-  color: #302942;
+  color: #33283d;
   text-decoration: none;
   border: none;
   cursor: pointer;
 }
 
 .secondaryCta {
+  display: inline-flex;
+  align-items: center;
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 600;
@@ -164,118 +202,40 @@
   padding-bottom: 3px;
 }
 
-/* Voice status card */
-
-.voiceCard {
-  position: absolute;
-  bottom: 60px;
-  right: 72px;
-  width: 240px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  background-color: #ffffff;
-  border-radius: 8px;
-  padding: 16px 16px 16px 18px;
-  box-shadow: 0 8px 24px rgba(48, 41, 66, 0.14);
-  border-left: 3px solid #7770a8;
-  z-index: 2;
-}
-
-.voiceTopRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.micBadge {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background-color: #7770a8;
-  flex-shrink: 0;
-}
-
-.voiceLabels {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.voiceTitle {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 600;
-  color: #302942;
-}
-
-.voiceSubtitle {
-  font-family: var(--font-sans);
-  font-size: 11px;
-  color: #817b89;
-}
-
-.waveform {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  height: 16px;
-}
-
-.waveformBar {
-  width: 2px;
-  border-radius: 1px;
-  background-color: #7770a8;
-}
-
-.waveformBarDim {
-  width: 2px;
-  border-radius: 1px;
-  background-color: rgba(119, 112, 168, 0.4);
-}
-
-.voiceQuote {
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-style: italic;
-  line-height: 1.4;
-  color: #817b89;
-  margin: 0;
+@media (prefers-reduced-motion: reduce) {
+  .navCta {
+    transition: none;
+  }
 }
 
 /* Mobile */
 
 @media (max-width: 860px) {
-  .hero {
-    min-height: 100vh;
-  }
-
   .nav {
     grid-template-columns: 1fr auto;
-    padding: 24px 24px;
+    padding: 20px 20px;
   }
 
   .navLinks {
     display: none;
   }
 
+  .connectionArc,
+  .connectionArcRight {
+    opacity: 0.15;
+  }
+
   .heroCopy {
-    left: 24px;
-    bottom: 220px;
-    width: calc(100% - 48px);
-    gap: 18px;
+    left: 20px;
+    bottom: 140px;
+    width: calc(100% - 40px);
   }
 
   .headline {
-    font-size: 44px;
-    line-height: 1.08;
+    line-height: 1.1;
   }
 
   .support {
-    font-size: 15px;
     max-width: 100%;
   }
 
@@ -290,19 +250,12 @@
     padding: 16px 24px;
   }
 
-  .voiceCard {
-    left: 24px;
-    right: 24px;
-    bottom: 32px;
-    width: auto;
-  }
-
   .heroOverlayLeft {
     background-image: linear-gradient(
       180deg,
-      rgba(48, 41, 66, 0.3) 0%,
-      rgba(48, 41, 66, 0.62) 55%,
-      rgba(48, 41, 66, 0.72) 100%
+      rgba(51, 40, 61, 0.3) 0%,
+      rgba(51, 40, 61, 0.62) 55%,
+      rgba(51, 40, 61, 0.72) 100%
     );
   }
 }

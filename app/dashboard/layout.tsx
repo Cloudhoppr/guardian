@@ -1,14 +1,45 @@
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+import Link from "next/link";
+
+import { db, schema } from "@/lib/db";
+
+import { brandFontVariables } from "../fonts";
+import { MobileNavMenu } from "./MobileNavMenu";
+import styles from "./dashboard.module.css";
+
+export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const [approver] = await db.select().from(schema.approver).limit(1);
+  const firstName = approver?.fullName?.split(" ")[0] ?? "Family";
+  const initials = approver?.fullName
+    ? approver.fullName
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((p) => p[0]?.toUpperCase() ?? "")
+        .join("")
+    : "FA";
+
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "32px 24px" }}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32 }}>
-        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600 }}>Guardian</h1>
-        <nav style={{ display: "flex", gap: 16, fontSize: 14 }}>
-          <a href="/dashboard">Family</a>
-          <a href="/senior">Senior view</a>
+    <div className={`${brandFontVariables} ${styles.shell}`}>
+      <header className={styles.topNav}>
+        <div className={styles.topNavWordmark}>guardian.</div>
+
+        <nav className={styles.topNavLinks} aria-label="Dashboard">
+          <span className={`${styles.topNavLink} ${styles.topNavLinkActive}`}>Family overview</span>
+          <span className={styles.topNavLink}>Activity history</span>
+          <Link href="/" className={styles.topNavLink}>
+            Back to home ↗
+          </Link>
         </nav>
+
+        <div className={styles.topNavProfile}>
+          <span className={styles.topNavProfileName}>{firstName}&rsquo;s family</span>
+          <span className={styles.topNavAvatar}>{initials}</span>
+        </div>
+
+        <MobileNavMenu />
       </header>
-      {children}
+
+      <main className={styles.main}>{children}</main>
     </div>
   );
 }
