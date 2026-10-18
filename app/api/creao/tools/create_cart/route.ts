@@ -64,7 +64,7 @@ export async function POST(req: Request) {
   // isn't held up; the question lands ~20s later via the Voice Reader.
   const outOfStock = products.map((p) => OUT_OF_STOCK[p.sku]).filter((s) => s !== undefined);
   for (const sub of outOfStock) {
-    after(proposeSubstitution({ memberId: input.memberId, ...sub }));
+    after(proposeSubstitution({ memberId: input.memberId, originalItem: sub.originalItem, substituteItem: sub.substituteItem }));
   }
 
   return Response.json({ cartId: cart!.id, items, subtotalCents });
