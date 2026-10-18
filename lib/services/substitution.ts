@@ -1,5 +1,10 @@
+import { and, eq, gt, like } from "drizzle-orm";
+
 import { db, schema } from "../db";
 import { triggerVoiceReader } from "../providers/creao";
+
+const PROPOSED_MESSAGE = "Instacart: substitution_proposed";
+const DEDUPE_WINDOW_SECONDS = 2 * 60;
 
 // Demo stock-outs: SKU → substitute name. There's no real Instacart
 // partnership, so create_cart treats these as unavailable and proposes the
@@ -19,11 +24,27 @@ export type SubstitutionInput = {
 // the question aloud via the speak tool, which also texts it + the MP3 to the
 // member. Never rejects; callers hand the promise to after().
 export async function proposeSubstitution(input: SubstitutionInput): Promise<void> {
+  // The Purchaser sometimes rebuilds the cart within one run; ask once.
+  const windowStart = new Date(Date.now() - DEDUPE_WINDOW_SECONDS * 1000);
+  const [recent] = await db
+    .select({ id: schema.orderEvent.id })
+    .from(schema.orderEvent)
+    .where(
+      and(
+        eq(schema.orderEvent.memberId, input.memberId),
+        eq(schema.orderEvent.message, PROPOSED_MESSAGE),
+        like(schema.orderEvent.payload, `%${JSON.stringify({ originalItem: input.originalItem }).slice(1, -1)}%`),
+        gt(schema.orderEvent.createdAt, windowStart),
+      ),
+    )
+    .limit(1);
+  if (recent) return;
+
   await db.insert(schema.orderEvent).values({
     memberId: input.memberId,
     orderId: input.orderId,
     stage: "needs_approval",
-    message: "Instacart: substitution_proposed",
+    message: PROPOSED_MESSAGE,
     payload: JSON.stringify({ originalItem: input.originalItem, substituteItem: input.substituteItem }),
   });
 

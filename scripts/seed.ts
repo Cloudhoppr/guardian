@@ -101,7 +101,7 @@ async function main() {
 
   const all = await db.select().from(schema.product);
   const bySku = (s: string) => all.find((p) => p.sku === s)!;
-  const usualSkus = ["GRO-MILK-2PC", "GRO-EGGS-DZ", "GRO-BREAD-WG", "GRO-CER-BLU", "GRO-BANAN", "GRO-OJ", "GRO-COFFEE", "GRO-YOGURT", "GRO-CHIK-BR", "GRO-SOUP"];
+  const usualSkus = ["GRO-MILK-2PC", "GRO-EGGS-DZ", "GRO-BREAD-WG", "GRO-CER-BLU", "GRO-BANAN", "GRO-OJ", "GRO-COFFEE", "GRO-YOGURT", "GRO-CHIK-BR", "GRO-SOUP", "GRO-AVOCADO"];
   await db
     .insert(schema.usualItem)
     .values(usualSkus.map((s) => ({ memberId: member.id, productId: bySku(s).id, typicalQuantity: 1 })))
