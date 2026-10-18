@@ -1,5 +1,5 @@
 // GET /api/cron/scheduler
-// Vercel cron fires this every ~5 min. Protect with a shared secret so random
+// GitHub Actions (.github/workflows/cron-scheduler.yml) fires this every ~5 min. Protect with a shared secret so random
 // internet traffic can't spam reminders.
 
 import { tick } from "@/lib/services/scheduler";

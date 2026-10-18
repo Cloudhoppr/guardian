@@ -1,0 +1,31 @@
+# Calls /api/cron/scheduler every 5 minutes. Replaces the Vercel cron, which
+# the Hobby plan limits to once a day.
+#
+# Required repo secrets:
+#   APP_URL      production base URL, e.g. https://guardian.vercel.app
+#   CRON_SECRET  same value as CRON_SECRET in Vercel's production env
+
+name: cron-scheduler
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: cron-scheduler
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Call scheduler endpoint
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 60 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "${APP_URL%/}/api/cron/scheduler"

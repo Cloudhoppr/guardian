@@ -22,7 +22,7 @@ app/
 └── api/
     ├── creao/tools/*       the 10 tools CREAO calls (defined in tools.schema.json)
     ├── photon/webhook      inbound SMS/iMessage → CREAO
-    └── cron/scheduler      Vercel cron, fires every 5 min
+    └── cron/scheduler      hit every 5 min by GitHub Actions (.github/workflows/cron-scheduler.yml)
 lib/
 ├── db/                     Drizzle schemas, one file per table
 ├── services/               rules, risk, scam-shield, pharmacy, payments, scheduler

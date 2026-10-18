@@ -9,3 +9,6 @@ node_modules
 .turbo
 lib/db/migrations
 .neon
+
+.vercel
+.env*
