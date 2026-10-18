@@ -5,7 +5,16 @@
 
 export type AgentCall = {
   memberId: string;
-  intent: "compose_refill_ready" | "compose_approval_request" | "compose_scam_refusal";
+  // intent is the CREAO agent identifier we want to run. Keep this list in
+  // sync with the agents configured on agent.creao.ai — if the agent isn't
+  // registered there, we silently fall back to canned text so the demo keeps
+  // moving.
+  intent:
+    | "compose_refill_ready"
+    | "compose_approval_request"
+    | "compose_scam_refusal"
+    | "run_purchaser"
+    | "run_scam_shield";
   payload: Record<string, unknown>;
 };
 
@@ -35,5 +44,9 @@ function fallbackText(call: AgentCall): string {
       return `Guardian needs your approval on an order.`;
     case "compose_scam_refusal":
       return `I'm not able to help with that — it looks like a scam. I've let your family know.`;
+    case "run_purchaser":
+      return `Working on your order...`;
+    case "run_scam_shield":
+      return `Checking that message for scams...`;
   }
 }
