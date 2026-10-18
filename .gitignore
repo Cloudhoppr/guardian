@@ -12,3 +12,4 @@ lib/db/migrations
 
 .vercel
 .env*
+*.tsbuildinfo
